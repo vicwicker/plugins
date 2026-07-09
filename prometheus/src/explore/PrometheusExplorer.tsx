@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Box, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { DataQueriesProvider, MultiQueryEditor, useSuggestedStepMs } from '@perses-dev/plugin-system';
 import { useExplorerManagerContext } from '@perses-dev/explore';
 import useResizeObserver from 'use-resize-observer';
@@ -31,18 +31,23 @@ const PANEL_PREVIEW_HEIGHT = 700;
 const FILTERED_QUERY_PLUGINS = ['PrometheusTimeSeriesQuery'];
 
 function TimeSeriesPanel({
-  queries,
-  stacked,
+  query,
   runCount,
+  index,
+  title,
 }: {
-  queries: QueryDefinition[];
-  stacked: boolean;
+  query: QueryDefinition;
   runCount: number;
+  index: number;
+  title: string;
 }): ReactElement {
   const { width, ref: boxRef } = useResizeObserver();
   const height = PANEL_PREVIEW_HEIGHT;
+  const [stacked, setStacked] = useState(false);
 
   const suggestedStepMs = useSuggestedStepMs(width);
+
+  const queries = useMemo(() => [query], [query]);
 
   const definition = useMemo(
     () => ({
@@ -67,16 +72,54 @@ function TimeSeriesPanel({
   }
 
   return (
-    <Box ref={boxRef} height={height} width="100%">
-      <DataQueriesProvider key={runCount} definitions={queries} options={{ suggestedStepMs, mode: 'range' }}>
-        <Panel
-          panelOptions={{
-            hideHeader: true,
+    <Stack>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="subtitle1" fontWeight="bold">
+          {title}
+        </Typography>
+        <ToggleButtonGroup
+          value={stacked ? 'stacked' : 'unstacked'}
+          exclusive
+          onChange={(_, value) => {
+            if (value !== null) {
+              setStacked(value === 'stacked');
+            }
           }}
-          definition={definition}
-        />
-      </DataQueriesProvider>
-    </Box>
+          size="small"
+          sx={{
+            backgroundColor: '#eeeeee',
+            borderRadius: 1,
+            p: 0.5,
+            '& .MuiToggleButton-root': {
+              border: 'none',
+              borderRadius: '4px !important',
+              px: 2,
+              color: '#666',
+              '&.Mui-selected': {
+                backgroundColor: '#fff !important',
+                color: '#000 !important',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.5)',
+              },
+            },
+          }}
+        >
+          <ToggleButton value="unstacked">Unstacked</ToggleButton>
+          <ToggleButton value="stacked">Stacked</ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+      <Box ref={boxRef} height={height} width="100%">
+        <DataQueriesProvider key={runCount} definitions={queries} options={{ suggestedStepMs, mode: 'range' }}>
+          <Panel
+            panelOptions={{
+              hideHeader: true,
+            }}
+            definition={definition}
+          />
+        </DataQueriesProvider>
+      </Box>
+    </Stack>
   );
 }
 
@@ -107,7 +150,6 @@ export function PrometheusExplorer(): ReactElement {
   } = useExplorerManagerContext<MetricsExplorerQueryParams>();
 
   const [queryDefinitions, setQueryDefinitions] = useState<QueryDefinition[]>(queries);
-  const [stacked, setStacked] = useState(false);
   const [runCount, setRunCount] = useState(0);
 
   return (
@@ -147,40 +189,15 @@ export function PrometheusExplorer(): ReactElement {
               }}
               filteredQueryPlugins={FILTERED_QUERY_PLUGINS}
             />
-            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
-              <ToggleButtonGroup
-                value={stacked ? 'stacked' : 'unstacked'}
-                exclusive
-                onChange={(_, value) => {
-                  if (value !== null) {
-                    setStacked(value === 'stacked');
-                  }
-                }}
-                size="small"
-                sx={{
-                  backgroundColor: '#eeeeee',
-                  borderRadius: 1,
-                  p: 0.5,
-                  '& .MuiToggleButton-root': {
-                    border: 'none',
-                    borderRadius: '4px !important',
-                    px: 2,
-                    color: '#666',
-                    '&.Mui-selected': {
-                      backgroundColor: '#fff !important',
-                      color: '#000 !important',
-                    },
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                    },
-                  },
-                }}
-              >
-                <ToggleButton value="unstacked">Unstacked</ToggleButton>
-                <ToggleButton value="stacked">Stacked</ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-            <TimeSeriesPanel queries={queries} stacked={stacked} runCount={runCount} />
+            {queries.map((query, index) => (
+              <TimeSeriesPanel
+                key={index}
+                query={query}
+                runCount={runCount}
+                index={index}
+                title={queryDefinitions[index]?.spec.name ?? `Query #${index + 1}`}
+              />
+            ))}
           </Stack>
         )}
         {tab === 'finder' && (
