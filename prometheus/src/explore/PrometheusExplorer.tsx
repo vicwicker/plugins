@@ -36,8 +36,12 @@ function TimeSeriesPanel({ queries }: { queries: QueryDefinition[] }): ReactElem
 
   const suggestedStepMs = useSuggestedStepMs(width);
 
+  if (!width) {
+    return <Box ref={boxRef} height={height} width="100%" />;
+  }
+
   return (
-    <Box ref={boxRef} height={height}>
+    <Box ref={boxRef} height={height} width="100%">
       <DataQueriesProvider definitions={queries} options={{ suggestedStepMs, mode: 'range' }}>
         <Panel
           panelOptions={{
@@ -45,7 +49,14 @@ function TimeSeriesPanel({ queries }: { queries: QueryDefinition[] }): ReactElem
           }}
           definition={{
             kind: 'Panel',
-            spec: { queries: queries, display: { name: '' }, plugin: { kind: 'TimeSeriesChart', spec: {} } },
+            spec: {
+              queries: queries,
+              display: { name: '' },
+              plugin: {
+                kind: 'TimeSeriesChart',
+                spec: { legend: { position: 'bottom', mode: 'list' } },
+              },
+            },
           }}
         />
       </DataQueriesProvider>
