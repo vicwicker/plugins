@@ -11,12 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Box, Stack, Tab, Tabs } from '@mui/material';
+import { Box, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { DataQueriesProvider, MultiQueryEditor, useSuggestedStepMs } from '@perses-dev/plugin-system';
 import { useExplorerManagerContext } from '@perses-dev/explore';
 import useResizeObserver from 'use-resize-observer';
 import { Panel } from '@perses-dev/dashboards';
-import { ReactElement, useState } from 'react';
+import { ReactElement, useMemo, useState } from 'react';
 import { QueryDefinition } from '@perses-dev/spec';
 import { DEFAULT_PROM } from '../model/prometheus-selectors';
 import { FinderQueryParams } from './PrometheusMetricsFinder/types';
@@ -30,11 +30,29 @@ interface MetricsExplorerQueryParams extends FinderQueryParams {
 const PANEL_PREVIEW_HEIGHT = 700;
 const FILTERED_QUERY_PLUGINS = ['PrometheusTimeSeriesQuery'];
 
-function TimeSeriesPanel({ queries }: { queries: QueryDefinition[] }): ReactElement {
+function TimeSeriesPanel({ queries, stacked }: { queries: QueryDefinition[]; stacked: boolean }): ReactElement {
   const { width, ref: boxRef } = useResizeObserver();
   const height = PANEL_PREVIEW_HEIGHT;
 
   const suggestedStepMs = useSuggestedStepMs(width);
+
+  const definition = useMemo(
+    () => ({
+      kind: 'Panel' as const,
+      spec: {
+        queries: queries,
+        display: { name: '' },
+        plugin: {
+          kind: 'TimeSeriesChart',
+          spec: {
+            legend: { position: 'bottom', mode: 'list' },
+            visual: stacked ? { stack: 'all', areaOpacity: 0.3 } : {},
+          },
+        },
+      },
+    }),
+    [queries, stacked]
+  );
 
   if (!width) {
     return <Box ref={boxRef} height={height} width="100%" />;
@@ -47,17 +65,7 @@ function TimeSeriesPanel({ queries }: { queries: QueryDefinition[] }): ReactElem
           panelOptions={{
             hideHeader: true,
           }}
-          definition={{
-            kind: 'Panel',
-            spec: {
-              queries: queries,
-              display: { name: '' },
-              plugin: {
-                kind: 'TimeSeriesChart',
-                spec: { legend: { position: 'bottom', mode: 'list' } },
-              },
-            },
-          }}
+          definition={definition}
         />
       </DataQueriesProvider>
     </Box>
@@ -91,6 +99,7 @@ export function PrometheusExplorer(): ReactElement {
   } = useExplorerManagerContext<MetricsExplorerQueryParams>();
 
   const [queryDefinitions, setQueryDefinitions] = useState<QueryDefinition[]>(queries);
+  const [stacked, setStacked] = useState(false);
 
   return (
     <Stack gap={2} sx={{ width: '100%' }}>
@@ -118,7 +127,7 @@ export function PrometheusExplorer(): ReactElement {
           </Stack>
         )}
         {tab === 'graph' && (
-          <Stack>
+          <Stack gap={3}>
             <MultiQueryEditor
               queryTypes={['TimeSeriesQuery']}
               onChange={(state) => setQueryDefinitions(state)}
@@ -126,7 +135,40 @@ export function PrometheusExplorer(): ReactElement {
               onQueryRun={() => setData({ tab, queries: queryDefinitions })}
               filteredQueryPlugins={FILTERED_QUERY_PLUGINS}
             />
-            <TimeSeriesPanel queries={queries} />
+            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
+              <ToggleButtonGroup
+                value={stacked ? 'stacked' : 'unstacked'}
+                exclusive
+                onChange={(_, value) => {
+                  if (value !== null) {
+                    setStacked(value === 'stacked');
+                  }
+                }}
+                size="small"
+                sx={{
+                  backgroundColor: '#eeeeee',
+                  borderRadius: 1,
+                  p: 0.5,
+                  '& .MuiToggleButton-root': {
+                    border: 'none',
+                    borderRadius: '4px !important',
+                    px: 2,
+                    color: '#666',
+                    '&.Mui-selected': {
+                      backgroundColor: '#fff !important',
+                      color: '#000 !important',
+                    },
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value="unstacked">Unstacked</ToggleButton>
+                <ToggleButton value="stacked">Stacked</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+            <TimeSeriesPanel queries={queries} stacked={stacked} />
           </Stack>
         )}
         {tab === 'finder' && (
