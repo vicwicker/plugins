@@ -30,7 +30,15 @@ interface MetricsExplorerQueryParams extends FinderQueryParams {
 const PANEL_PREVIEW_HEIGHT = 700;
 const FILTERED_QUERY_PLUGINS = ['PrometheusTimeSeriesQuery'];
 
-function TimeSeriesPanel({ queries, stacked }: { queries: QueryDefinition[]; stacked: boolean }): ReactElement {
+function TimeSeriesPanel({
+  queries,
+  stacked,
+  runCount,
+}: {
+  queries: QueryDefinition[];
+  stacked: boolean;
+  runCount: number;
+}): ReactElement {
   const { width, ref: boxRef } = useResizeObserver();
   const height = PANEL_PREVIEW_HEIGHT;
 
@@ -60,7 +68,7 @@ function TimeSeriesPanel({ queries, stacked }: { queries: QueryDefinition[]; sta
 
   return (
     <Box ref={boxRef} height={height} width="100%">
-      <DataQueriesProvider definitions={queries} options={{ suggestedStepMs, mode: 'range' }}>
+      <DataQueriesProvider key={runCount} definitions={queries} options={{ suggestedStepMs, mode: 'range' }}>
         <Panel
           panelOptions={{
             hideHeader: true,
@@ -100,6 +108,7 @@ export function PrometheusExplorer(): ReactElement {
 
   const [queryDefinitions, setQueryDefinitions] = useState<QueryDefinition[]>(queries);
   const [stacked, setStacked] = useState(false);
+  const [runCount, setRunCount] = useState(0);
 
   return (
     <Stack gap={2} sx={{ width: '100%' }}>
@@ -132,7 +141,10 @@ export function PrometheusExplorer(): ReactElement {
               queryTypes={['TimeSeriesQuery']}
               onChange={(state) => setQueryDefinitions(state)}
               queries={queryDefinitions}
-              onQueryRun={() => setData({ tab, queries: queryDefinitions })}
+              onQueryRun={() => {
+                setData({ tab, queries: queryDefinitions });
+                setRunCount((c) => c + 1);
+              }}
               filteredQueryPlugins={FILTERED_QUERY_PLUGINS}
             />
             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
@@ -168,7 +180,7 @@ export function PrometheusExplorer(): ReactElement {
                 <ToggleButton value="stacked">Stacked</ToggleButton>
               </ToggleButtonGroup>
             </Stack>
-            <TimeSeriesPanel queries={queries} stacked={stacked} />
+            <TimeSeriesPanel queries={queries} stacked={stacked} runCount={runCount} />
           </Stack>
         )}
         {tab === 'finder' && (
