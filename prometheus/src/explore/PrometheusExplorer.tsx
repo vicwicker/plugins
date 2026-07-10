@@ -33,12 +33,10 @@ const FILTERED_QUERY_PLUGINS = ['PrometheusTimeSeriesQuery'];
 function TimeSeriesPanel({
   query,
   runCount,
-  index,
   title,
 }: {
   query: QueryDefinition;
   runCount: number;
-  index: number;
   title: string;
 }): ReactElement {
   const { width, ref: boxRef } = useResizeObserver();
@@ -150,7 +148,7 @@ export function PrometheusExplorer(): ReactElement {
   } = useExplorerManagerContext<MetricsExplorerQueryParams>();
 
   const [queryDefinitions, setQueryDefinitions] = useState<QueryDefinition[]>(queries);
-  const [runCount, setRunCount] = useState(0);
+  const [runCounts, setRunCounts] = useState<number[]>(() => queries.map(() => 0));
 
   return (
     <Stack gap={2} sx={{ width: '100%' }}>
@@ -183,9 +181,17 @@ export function PrometheusExplorer(): ReactElement {
               queryTypes={['TimeSeriesQuery']}
               onChange={(state) => setQueryDefinitions(state)}
               queries={queryDefinitions}
-              onQueryRun={() => {
-                setData({ tab, queries: queryDefinitions });
-                setRunCount((c) => c + 1);
+              onQueryRun={(index) => {
+                const updated = [...queryDefinitions];
+                setData({ tab, queries: updated });
+                setRunCounts((counts) => {
+                  const next = [...counts];
+                  while (next.length <= index) {
+                    next.push(0);
+                  }
+                  next[index] = (next[index] ?? 0) + 1;
+                  return next;
+                });
               }}
               filteredQueryPlugins={FILTERED_QUERY_PLUGINS}
             />
@@ -193,8 +199,7 @@ export function PrometheusExplorer(): ReactElement {
               <TimeSeriesPanel
                 key={index}
                 query={query}
-                runCount={runCount}
-                index={index}
+                runCount={runCounts[index] ?? 0}
                 title={queryDefinitions[index]?.spec.name ?? `Query #${index + 1}`}
               />
             ))}
