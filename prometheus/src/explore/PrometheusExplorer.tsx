@@ -11,13 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Box, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, Stack, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { DataQueriesProvider, MultiQueryEditor, useSuggestedStepMs } from '@perses-dev/plugin-system';
 import { useExplorerManagerContext } from '@perses-dev/explore';
 import useResizeObserver from 'use-resize-observer';
 import { Panel } from '@perses-dev/dashboards';
-import { ReactElement, useMemo, useState } from 'react';
+import { ReactElement, useCallback, useMemo, useState } from 'react';
 import { QueryDefinition } from '@perses-dev/spec';
+import { produce } from 'immer';
 import { DEFAULT_PROM } from '../model/prometheus-selectors';
 import { FinderQueryParams } from './PrometheusMetricsFinder/types';
 import { PrometheusMetricsFinder } from './PrometheusMetricsFinder';
@@ -34,24 +35,41 @@ function TimeSeriesPanel({
   query,
   runCount,
   title,
+  onLegendFormatChange,
 }: {
   query: QueryDefinition;
   runCount: number;
   title: string;
+  onLegendFormatChange: (format: string) => void;
 }): ReactElement {
   const { width, ref: boxRef } = useResizeObserver();
   const height = PANEL_PREVIEW_HEIGHT;
   const [stacked, setStacked] = useState(false);
+  const initialFormat = (query.spec.plugin.spec as Record<string, unknown>)?.seriesNameFormat as string ?? '';
+  const [legendFormatInput, setLegendFormatInput] = useState<string>(initialFormat);
+  const [legendFormat, setLegendFormat] = useState<string>(initialFormat);
 
   const suggestedStepMs = useSuggestedStepMs(width);
 
-  const queries = useMemo(() => [query], [query]);
+  const queriesWithFormat = useMemo(() => {
+    if (!legendFormat) return [query];
+    return [{
+      ...query,
+      spec: {
+        ...query.spec,
+        plugin: {
+          ...query.spec.plugin,
+          spec: { ...query.spec.plugin.spec, seriesNameFormat: legendFormat },
+        },
+      },
+    }];
+  }, [query, legendFormat]);
 
   const definition = useMemo(
     () => ({
       kind: 'Panel' as const,
       spec: {
-        queries: queries,
+        queries: queriesWithFormat,
         display: { name: '' },
         plugin: {
           kind: 'TimeSeriesChart',
@@ -62,7 +80,7 @@ function TimeSeriesPanel({
         },
       },
     }),
-    [queries, stacked]
+    [queriesWithFormat, stacked]
   );
 
   if (!width) {
@@ -71,44 +89,71 @@ function TimeSeriesPanel({
 
   return (
     <Stack>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
+      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
         <Typography variant="subtitle1" fontWeight="bold">
           {title}
         </Typography>
-        <ToggleButtonGroup
-          value={stacked ? 'stacked' : 'unstacked'}
-          exclusive
-          onChange={(_, value) => {
-            if (value !== null) {
-              setStacked(value === 'stacked');
-            }
-          }}
-          size="small"
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
           sx={{
+            width: width ? width / 2 : 300,
             backgroundColor: '#eeeeee',
             borderRadius: 1,
             p: 0.5,
-            '& .MuiToggleButton-root': {
-              border: 'none',
-              borderRadius: '4px !important',
-              px: 2,
-              color: '#666',
-              '&.Mui-selected': {
-                backgroundColor: '#fff !important',
-                color: '#000 !important',
-              },
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.5)',
-              },
-            },
           }}
         >
-          <ToggleButton value="unstacked">Unstacked</ToggleButton>
-          <ToggleButton value="stacked">Stacked</ToggleButton>
-        </ToggleButtonGroup>
+          <TextField
+            size="small"
+            placeholder="Format legend with {{label_name}} to interpolate label values"
+            value={legendFormatInput}
+            onChange={(e) => setLegendFormatInput(e.target.value)}
+            onBlur={() => {
+              setLegendFormat(legendFormatInput);
+              onLegendFormatChange(legendFormatInput);
+            }}
+            sx={{
+              flexGrow: 1,
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: '#fff',
+                borderRadius: '4px',
+              },
+            }}
+          />
+          <Box sx={{ width: '1px', height: 24, backgroundColor: '#ccc' }} />
+          <ToggleButtonGroup
+            value={stacked ? 'stacked' : 'unstacked'}
+            exclusive
+            onChange={(_, value) => {
+              if (value !== null) {
+                setStacked(value === 'stacked');
+              }
+            }}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                border: 'none',
+                borderRadius: '4px !important',
+                px: 2,
+                color: '#666',
+                '&.Mui-selected': {
+                  backgroundColor: '#fff !important',
+                  color: '#000 !important',
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                },
+              },
+            }}
+          >
+            <ToggleButton value="unstacked">Unstacked</ToggleButton>
+            <ToggleButton value="stacked">Stacked</ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
       </Stack>
       <Box ref={boxRef} height={height} width="100%">
-        <DataQueriesProvider key={runCount} definitions={queries} options={{ suggestedStepMs, mode: 'range' }}>
+        <DataQueriesProvider key={runCount} definitions={queriesWithFormat} options={{ suggestedStepMs, mode: 'range' }}>
           <Panel
             panelOptions={{
               hideHeader: true,
@@ -149,6 +194,19 @@ export function PrometheusExplorer(): ReactElement {
 
   const [queryDefinitions, setQueryDefinitions] = useState<QueryDefinition[]>(queries);
   const [runCounts, setRunCounts] = useState<number[]>(() => queries.map(() => 0));
+
+  const handleLegendFormatChange = useCallback((index: number, format: string) => {
+    setQueryDefinitions((prev) =>
+      produce(prev, (draft) => {
+        if (draft[index]) {
+          draft[index].spec.plugin.spec = {
+            ...draft[index].spec.plugin.spec,
+            seriesNameFormat: format || undefined,
+          };
+        }
+      })
+    );
+  }, []);
 
   return (
     <Stack gap={2} sx={{ width: '100%' }}>
@@ -201,6 +259,7 @@ export function PrometheusExplorer(): ReactElement {
                 query={query}
                 runCount={runCounts[index] ?? 0}
                 title={queryDefinitions[index]?.spec.name ?? `Query #${index + 1}`}
+                onLegendFormatChange={(format) => handleLegendFormatChange(index, format)}
               />
             ))}
           </Stack>

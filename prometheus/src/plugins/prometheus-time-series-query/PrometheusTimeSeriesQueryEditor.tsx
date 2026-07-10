@@ -152,19 +152,21 @@ export function PrometheusTimeSeriesQueryEditor(props: PrometheusTimeSeriesQuery
         treeViewMetadata={treeViewMetadata}
       />
       <Stack direction="row" spacing={2}>
-        <TextField
-          fullWidth
-          label="Legend"
-          placeholder="Example: '{{instance}}' will generate series names like 'webserver-123', 'webserver-456'..."
-          helperText="Text to be displayed in the legend and the tooltip. Use {{label_name}} to interpolate label values."
-          value={format ?? ''}
-          onChange={(e) => handleFormatChange(e.target.value)}
-          onBlur={handleFormatBlur}
-          slotProps={{
-            inputLabel: { shrink: isReadonly ? true : undefined },
-            input: { readOnly: isReadonly },
-          }}
-        />
+        {panelEditorContext && (
+          <TextField
+            fullWidth
+            label="Legend"
+            placeholder="Example: '{{instance}}' will generate series names like 'webserver-123', 'webserver-456'..."
+            helperText="Text to be displayed in the legend and the tooltip. Use {{label_name}} to interpolate label values."
+            value={format ?? ''}
+            onChange={(e) => handleFormatChange(e.target.value)}
+            onBlur={handleFormatBlur}
+            slotProps={{
+              inputLabel: { shrink: isReadonly ? true : undefined },
+              input: { readOnly: isReadonly },
+            }}
+          />
+        )}
         <TextField
           label="Min Step"
           placeholder={minStepPlaceholder}
