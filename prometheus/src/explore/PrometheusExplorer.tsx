@@ -20,6 +20,7 @@ import { ReactElement, useCallback, useMemo, useState } from 'react';
 import { QueryDefinition } from '@perses-dev/spec';
 import { produce } from 'immer';
 import { DEFAULT_PROM } from '../model/prometheus-selectors';
+import { QueryEditorConfigProvider } from '../components/QueryEditorConfigProvider';
 import { FinderQueryParams } from './PrometheusMetricsFinder/types';
 import { PrometheusMetricsFinder } from './PrometheusMetricsFinder';
 
@@ -235,7 +236,8 @@ export function PrometheusExplorer(): ReactElement {
         )}
         {tab === 'graph' && (
           <Stack gap={3}>
-            <MultiQueryEditor
+            <QueryEditorConfigProvider hiddenFields={['seriesNameFormat']}>
+              <MultiQueryEditor
               queryTypes={['TimeSeriesQuery']}
               onChange={(state) => setQueryDefinitions(state)}
               queries={queryDefinitions}
@@ -253,6 +255,7 @@ export function PrometheusExplorer(): ReactElement {
               }}
               filteredQueryPlugins={FILTERED_QUERY_PLUGINS}
             />
+            </QueryEditorConfigProvider>
             {queryDefinitions.map((query, index) => (
               <TimeSeriesPanel
                 key={index}

@@ -41,6 +41,7 @@ import {
 } from '../../model';
 import { DEFAULT_SCRAPE_INTERVAL, PrometheusDatasourceSpec } from '../types';
 import { PromQLEditor } from '../../components';
+import { useQueryEditorConfig } from '../../components/QueryEditorConfigProvider';
 import {
   PrometheusTimeSeriesQueryEditorProps,
   useQueryState,
@@ -101,6 +102,7 @@ export function PrometheusTimeSeriesQueryEditor(props: PrometheusTimeSeriesQuery
   const variableState = useAllVariableValues();
   const { absoluteTimeRange } = useTimeRange();
   const panelEditorContext = useContext(PanelEditorContext);
+  const { hiddenFields } = useQueryEditorConfig();
   const suggestedStepMs = useSuggestedStepMs(panelEditorContext?.preview.previewPanelWidth);
 
   const minStepMs = useMemo(() => {
@@ -152,7 +154,7 @@ export function PrometheusTimeSeriesQueryEditor(props: PrometheusTimeSeriesQuery
         treeViewMetadata={treeViewMetadata}
       />
       <Stack direction="row" spacing={2}>
-        {panelEditorContext && (
+        {!hiddenFields?.includes('seriesNameFormat') && (
           <TextField
             fullWidth
             label="Legend"
