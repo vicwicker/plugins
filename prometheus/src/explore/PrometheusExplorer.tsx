@@ -195,7 +195,7 @@ export function PrometheusExplorer(): ReactElement {
               }}
               filteredQueryPlugins={FILTERED_QUERY_PLUGINS}
             />
-            {queries.map((query, index) => (
+            {queryDefinitions.map((query, index) => (
               <TimeSeriesPanel
                 key={index}
                 query={query}
